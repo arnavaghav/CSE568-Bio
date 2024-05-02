@@ -118,41 +118,49 @@ class Simulation:
     def plot_results(self):
 
         plt.figure(figsize=(15, 5))
-
-        # Plot 1: Number of ants by commitment
         plt.subplot(1, 3, 1)
         plt.plot(self.ant_count_A, color='green', label='Committed to Feeder A')
         plt.plot(self.ant_count_B, color='blue', label='Committed to Feeder B')
         plt.plot(self.uncommitted_ants, color='grey', label='Uncommitted')
-        plt.title('Ant Commitment over Time')
         plt.xlabel('Time Steps')
         plt.ylabel('Number of Ants')
+        plt.title('Ant Commitment over Time')
         plt.legend()
 
-        # Plot 2: Food remaining at feeders
         plt.subplot(1, 3, 2)
         plt.plot(self.food_A, color='green', label='Food at Feeder A')
         plt.plot(self.food_B, color='blue', label='Food at Feeder B')
-        plt.title('Food Remaining at Feeders')
+
+        # plt.title('Food Remaining at Feeders')
         plt.xlabel('Time Steps')
         plt.ylabel('Food Units')
-        plt.legend()
+        # plt.legend()
 
-        # Plot 3: Ratio of committed to uncommitted ants
-        plt.subplot(1, 3, 3)
-        total_committed = np.array(self.ant_count_A) + np.array(self.ant_count_B)
-        ratio_committed_uncommitted = np.zeros_like(total_committed, dtype=float)  # Ensure output is float
-        np.divide(total_committed, self.uncommitted_ants, out=ratio_committed_uncommitted, where=self.uncommitted_ants!=0)
-        plt.plot(ratio_committed_uncommitted, color='purple', label='Ratio of Committed to Uncommitted')
-        plt.title('Commitment Ratio over Time')
-        plt.xlabel('Time Steps')
-        plt.ylabel('Ratio')
+
+        # plt.figure(figsize=(10, 5))
+        # plt.subplot(1, 2, 1)
+        # plt.plot(self.ant_count_A, label='Feeder A')
+        # plt.plot(self.ant_count_B, label='Feeder B')
+        # plt.title('Number of Ants at Each Feeder')
+        # plt.xlabel('Time Steps')
+        # plt.ylabel('Number of Ants')
+        # plt.legend()
+
+        # plt.subplot(1, 2, 2)
+        # plt.plot(self.food_A, label='Food at Feeder A')
+        # plt.plot(self.food_B, label='Food at Feeder B')
+        plt.title('Food Remaining at Feeders')
+        # plt.xlabel('Time Steps')
+        # plt.ylabel('Food Units')
         plt.legend()
 
         plt.tight_layout()
-        plt.savefig(os.path.join(self.folder_name, 'ants_simulation_results.png'))
         plt.show()
 
+        # Save the figure to a file
+        plt.savefig(os.path.join(self.folder_name, 'ants_simulation_results.png'))  # Specify your path and file name here
+        
+        plt.show()  # This will still display the plot
 
 def find_available_folder(base_path='Experiment'):
     counter = 1
