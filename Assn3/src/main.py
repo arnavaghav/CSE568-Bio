@@ -13,7 +13,7 @@ FEEDER_B = (35, 35)
 
 ALPHA_A = ALPHA_B = 0.0225
 BETA_A = 0.015   # Higher recruitment rate for the good feeder (Feeder A)
-BETA_B = 0.01   # Lower recruitment rate for the poor feeder (Feeder B)
+BETA_B = 0.006   # Lower recruitment rate for the poor feeder (Feeder B)
 LAMBDA_A = 0.009  # Lower attrition rate for the good feeder (Feeder A)
 LAMBDA_B = 0.038  # Higher attrition rate for the poor feeder (Feeder B)
 
