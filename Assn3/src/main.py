@@ -3,28 +3,22 @@ import random
 import numpy as np
 import matplotlib.pyplot as plt
 
-""" Parameters: 100 ants and run it with the following parameters: 
-             αA = 0.75, αB = 0.75, 
-             βA = 0.9, βB = 0.36, 
-             λA = 0.009, λB = 0.038.
-"""
-
 # Constants
 GRID_SIZE = 50
 NUM_ANTS = 100
 INITIAL_FOOD = 100
-
-# Feeders and nest locations
 NEST = (25, 5)
 FEEDER_A = (10, 40)
-FEEDER_B = (40, 40)
+FEEDER_B = (35, 35)
 
-# Parameters
-ALPHA_A = ALPHA_B = 0.75
-BETA_A = 0.9
-BETA_B = 0.36
-LAMBDA_A = 0.009
-LAMBDA_B = 0.038
+ALPHA_A = ALPHA_B = 0.0225
+BETA_A = 0.015   # Higher recruitment rate for the good feeder (Feeder A)
+BETA_B = 0.01   # Lower recruitment rate for the poor feeder (Feeder B)
+LAMBDA_A = 0.009  # Lower attrition rate for the good feeder (Feeder A)
+LAMBDA_B = 0.038  # Higher attrition rate for the poor feeder (Feeder B)
+
+global timesteps 
+timesteps = 1000
 
 class Ant:
     def __init__(self, x, y):
@@ -39,18 +33,75 @@ class Ant:
         self.x = (self.x + direction[0]) % GRID_SIZE
         self.y = (self.y + direction[1]) % GRID_SIZE
 
-    def update_state(self, feeders):
+    def update_state(self, feeders, ants):        
+        # Define nearby_ants at the start of the method
+        nearby_ants = [ant for ant in ants if ant != self and max(abs(ant.x - self.x), abs(ant.y - self.y)) <= 1]
+
+        # Check for attrition dynamically based on encounters
+        if self.state.startswith('committed') and not self.has_food:
+            # Interaction with another ant can cause reconsideration
+            if nearby_ants:
+                attrition_rate = LAMBDA_A if self.state == 'committed_A' else LAMBDA_B
+                if random.random() < (attrition_rate * len(nearby_ants)):  # Adjusted attrition rate
+                    self.state = 'uncommitted'
+
+        # Interaction with feeders
         for feeder in feeders:
             if (self.x, self.y) == (feeder.x, feeder.y):
+                # Ant picks up food if it finds food at a feeder and is not already carrying food
                 if feeder.food > 0 and not self.has_food:
-                    # Take food from feeder
                     feeder.food -= 1
                     self.has_food = True
-                elif self.has_food:
-                    # Return food to feeder
-                    feeder.food += 1
-                    self.has_food = False
-                self.state = 'committed_A' if feeder == feeders[0] else 'committed_B'
+                    self.state = 'committed_A' if feeder == feeders[0] else 'committed_B'
+
+                # When ant has food and reaches the nest, it deposits the food
+                elif self.has_food and (self.x, self.y) == NEST:
+                    self.has_food = False  # Ant drops off food
+                    if random.random() < 0.8:  # 80% chance to become uncommitted
+                        self.state = 'uncommitted'
+
+        # Recruitment interaction only if ant is committed and has food
+        if self.state.startswith('committed') and self.has_food:
+            for ant in nearby_ants:
+                if ant.state == 'uncommitted':
+                    recruitment_rate = BETA_A if self.state == 'committed_A' else BETA_B
+                    if random.random() < recruitment_rate:  # Use feeder-specific recruitment rate
+                        ant.state = self.state  # Recruit to the same state
+
+        
+        """Stable"""
+        # Define nearby_ants at the start of the method
+        nearby_ants = [ant for ant in ants if ant != self and max(abs(ant.x - self.x), abs(ant.y - self.y)) <= 1]
+
+        # Check for attrition dynamically based on encounters
+        if self.state.startswith('committed') and not self.has_food:
+            # Interaction with another ant can cause reconsideration
+            if nearby_ants and random.random() < (0.1 * len(nearby_ants)):  # 10% per nearby ant
+                self.state = 'uncommitted'
+
+        # Interaction with feeders
+        for feeder in feeders:
+            if (self.x, self.y) == (feeder.x, feeder.y):
+                # Ant picks up food if it finds food at a feeder and is not already carrying food
+                if feeder.food > 0 and not self.has_food:
+                    feeder.food -= 1
+                    self.has_food = True
+                    # Immediate commitment to the feeder where it picks up the food
+                    self.state = 'committed_A' if feeder == feeders[0] else 'committed_B'
+                # When ant has food and reaches the nest, it deposits the food
+                elif self.has_food and (self.x, self.y) == NEST:
+                    self.has_food = False  # Ant drops off food
+                    # Strong chance to become uncommitted after food delivery
+                    if random.random() < 0.8:  # 80% chance to become uncommitted
+                        self.state = 'uncommitted'
+
+        # Recruitment interaction only if ant is committed and has food
+        if self.state.startswith('committed') and self.has_food:
+            for ant in nearby_ants:
+                if ant.state == 'uncommitted':
+                    recruitment_chance = 0.5  # Flat 50% chance to recruit
+                    if random.random() < recruitment_chance:
+                        ant.state = self.state  # Recruit to the same state
 
 class Feeder:
     def __init__(self, x, y, food):
@@ -60,22 +111,21 @@ class Feeder:
 
 class Simulation:
     def __init__(self, folder_name):
+        self.folder_name = folder_name
         self.ants = [Ant(NEST[0], NEST[1]) for _ in range(NUM_ANTS)]
-        self.feeders = [Feeder(FEEDER_A[0], FEEDER_A[1], INITIAL_FOOD),
-                        Feeder(FEEDER_B[0], FEEDER_B[1], INITIAL_FOOD)]
-        self.ant_count_A = [0]
-        self.ant_count_B = [0]
-        self.uncommitted_ants = [NUM_ANTS]
+        self.feeders = [Feeder(FEEDER_A[0], FEEDER_A[1], INITIAL_FOOD), Feeder(FEEDER_B[0], FEEDER_B[1], INITIAL_FOOD)]
+        self.ant_count_A = []
+        self.ant_count_B = []
+        self.uncommitted_ants = []
         self.food_A = [INITIAL_FOOD]
         self.food_B = [INITIAL_FOOD]
-        self.folder_name = folder_name
 
     def run_step(self):
         count_A = count_B = count_uncommitted = 0
-
         for ant in self.ants:
             ant.move()
-            ant.update_state(self.feeders)
+            ant.update_state(self.feeders, self.ants)
+            # Count states for plotting
             if ant.state == 'committed_A':
                 count_A += 1
             elif ant.state == 'committed_B':
@@ -83,12 +133,13 @@ class Simulation:
             else:
                 count_uncommitted += 1
 
+        # Append counts for plotting
         self.ant_count_A.append(count_A)
         self.ant_count_B.append(count_B)
         self.uncommitted_ants.append(count_uncommitted)
         self.food_A.append(self.feeders[0].food)
         self.food_B.append(self.feeders[1].food)
-
+    
     def plot_grid(self, count):
         grid = np.zeros((GRID_SIZE, GRID_SIZE, 3), dtype=float)
         
@@ -151,6 +202,13 @@ class Simulation:
 
         plt.tight_layout()
         plt.savefig(os.path.join(self.folder_name, 'ants_simulation_results.png'))
+        param_log = open(os.path.join(self.folder_name, 'context.txt'), 'w')
+        param_log.write(f"NUM_ANTS = {NUM_ANTS}\nINITIAL_FOOD = {INITIAL_FOOD}\n"
+                        f"ALPHA_A = {ALPHA_A}\nALPHA_B = {ALPHA_B}\n"
+                        f"BETA_A = {BETA_A}\nBETA_B = {BETA_B}\n"
+                        f"LAMBDA_A = {LAMBDA_A}\nLAMBDA_B = {LAMBDA_B}\n"
+                        f"Feeder A: {FEEDER_A}\nFeeder B: {FEEDER_B}\n"
+                        f"Timesteps: {timesteps}")
         plt.show()
 
 
@@ -164,10 +222,11 @@ def find_available_folder(base_path='Experiment'):
         counter += 1
 
 def main():
-    sim = Simulation(find_available_folder())
-    for step in range(1000):  # Simulate for 1000 time steps
+    folder_name = find_available_folder()  # Get the folder name first
+    sim = Simulation(folder_name)  # Pass the folder name to the Simulation
+    for step in range(timesteps):  # Simulate for 1000 time steps
         sim.run_step()
-        if step % 50 == 0:  # Update grid plot every 100 steps
+        if step % 50 == 0:  # Update grid plot every 50 steps
             sim.plot_grid(step)
 
     # Plot the final state of the grid
